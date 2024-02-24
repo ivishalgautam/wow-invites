@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import Title from "../Title";
 import http from "@/utils/http";
-import { endpoints } from "@/utils/endpoints";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
@@ -15,14 +14,15 @@ import { AiOutlineDelete } from "react-icons/ai";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 import Modal from "../Modal";
+import { endpoints } from "../../utils/endpoints";
 
-export function CategoryForm({
+export function BannerForm({
   type,
   handleCreate,
   handleUpdate,
   handleDelete,
   closeModal,
-  categoryId,
+  bannerId,
 }) {
   const {
     register,
@@ -40,9 +40,7 @@ export function CategoryForm({
 
   const onSubmit = (data) => {
     const payload = {
-      name: data.name,
       image: pictures,
-      is_featured: data.is_featured ?? false,
     };
 
     if (type === "create") {
@@ -50,7 +48,7 @@ export function CategoryForm({
     } else if (type === "edit") {
       handleUpdate(payload);
     } else if (type === "delete") {
-      handleDelete(categoryId);
+      handleDelete(bannerId);
     }
     closeModal();
   };
@@ -60,23 +58,18 @@ export function CategoryForm({
     const fetchData = async () => {
       try {
         const data = await http().get(
-          `${endpoints.categories.getAll}/getById/${categoryId}`,
+          `${endpoints.banners.getAll}/${bannerId}`,
         );
 
-        data && setValue("name", data?.name);
-        data && setValue("is_featured", data?.is_featured);
         data && setPictures(data.image);
       } catch (error) {
         console.error(error);
       }
     };
-    if (
-      categoryId &&
-      (type === "edit" || type === "view" || type === "delete")
-    ) {
+    if (bannerId && (type === "edit" || type === "view" || type === "delete")) {
       fetchData();
     }
-  }, [categoryId, type]);
+  }, [bannerId, type]);
 
   const handleFileChange = async (event) => {
     try {
@@ -96,8 +89,6 @@ export function CategoryForm({
       );
 
       setPictures(response.data.path[0]);
-
-      console.log("Upload successful:", response.data.path[0]);
     } catch (error) {
       console.error("Error uploading image:", error);
     } finally {
@@ -129,29 +120,14 @@ export function CategoryForm({
           <Title
             text={
               type === "create"
-                ? "Create category"
+                ? "Create banner"
                 : type === "view"
-                  ? "Category details"
+                  ? "Banner details"
                   : type === "edit"
-                    ? "Edit category"
+                    ? "Banner category"
                     : "Are you sure you want to delete"
             }
           />
-
-          <div>
-            <Input
-              type="text"
-              disabled={type === "view" || type === "delete"}
-              // className="w-full px-4 py-3 h-[44px] border outline-none rounded-md bg-[#F7F7FC] font-mulish text-xl font-semibold"
-              placeholder="Category Name"
-              {...register("name", {
-                required: "Category is required",
-              })}
-            />
-            {errors.name && (
-              <span className="text-red-600">{errors.name.message}</span>
-            )}
-          </div>
 
           {pictures ? (
             <div className="relative h-32 w-full">
@@ -198,27 +174,6 @@ export function CategoryForm({
               )}
             </div>
           )}
-
-          <div className="flex items-center space-x-2">
-            <Controller
-              name="is_featured"
-              control={control}
-              render={({ field: { onChange } }) => (
-                <Checkbox
-                  onCheckedChange={onChange}
-                  checked={getValues("is_featured")}
-                  className="size-5"
-                />
-              )}
-            />
-
-            <Label
-              htmlFor="is_featured"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Is Featured
-            </Label>
-          </div>
 
           <div className="text-right">
             {type !== "view" && (

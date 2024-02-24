@@ -6,6 +6,7 @@ export const endpoints = {
     username: "/auth/username",
   },
   profile: "/users/me",
+  payment: "/payment",
   categories: {
     getAll: "/categories",
   },
@@ -18,5 +19,8 @@ export const endpoints = {
   files: {
     upload: "/upload/files",
     getFiles: "/upload",
+  },
+  banners: {
+    getAll: "/banners",
   },
 };

@@ -23,8 +23,15 @@ import {
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function DataTable({ columns, data }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const page =
+    typeof searchParams.get("page") === "string"
+      ? Number(searchParams.get("page"))
+      : 1;
   const [sorting, setSorting] = React.useState([]);
   const [columnFilters, setColumnFilters] = React.useState([]);
   const table = useReactTable({
@@ -67,7 +74,7 @@ export function DataTable({ columns, data }) {
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   );
@@ -86,7 +93,7 @@ export function DataTable({ columns, data }) {
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -118,7 +125,7 @@ export function DataTable({ columns, data }) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table?.nextPage()}
+          onClick={() => router.push(`?page=${page + 1}`)}
           disabled={!table?.getCanNextPage()}
         >
           Next

@@ -22,6 +22,12 @@ export const AllRoutes = [
     roles: [ROLES.ADMIN],
   },
   {
+    label: "Banners",
+    link: "/banners",
+    icon: MdOutlineCategory,
+    roles: [ROLES.ADMIN],
+  },
+  {
     label: "Templates",
     link: "/templates",
     icon: HiOutlineTemplate,

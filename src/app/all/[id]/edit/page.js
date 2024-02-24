@@ -44,6 +44,8 @@ export default function Page({ params: { id } }) {
     enabled: !!id,
   });
 
+  console.log({ data });
+
   const createMutation = useMutation(createQuery, {
     onSuccess: () => {
       toast.success("Query sent.");
@@ -72,9 +74,9 @@ export default function Page({ params: { id } }) {
     ...Object.keys(fields).map((d) => parseInt(d)),
   );
 
-  const onSubmit = async (data) => {
-    console.log({ data });
+  console.log({ fields, images });
 
+  const onSubmit = async (data) => {
     const payload = {
       details: details,
       template_id: id,
@@ -82,6 +84,16 @@ export default function Page({ params: { id } }) {
     };
 
     handleCreate(payload);
+  };
+
+  const makePayment = async () => {
+    try {
+      const resp = await http().post(endpoints.payment, { amount: 1000 });
+      console.log({ resp });
+      router.push(resp);
+    } catch (error) {
+      console.log({ error });
+    }
   };
 
   const handlePageChange = async (pageNum) => {
@@ -230,7 +242,13 @@ export default function Page({ params: { id } }) {
                     </Button>
                   </>
                 ) : (
-                  <Button className="col-span-3">Submit</Button>
+                  <Button
+                    type="button"
+                    className="col-span-3"
+                    onClick={() => makePayment()}
+                  >
+                    Submit
+                  </Button>
                 )}
               </div>
             </div>

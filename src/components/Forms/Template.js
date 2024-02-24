@@ -24,22 +24,24 @@ import Spinner from "../Spinner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useFetchCategories } from "@/hooks/useFetchCategories";
+import Modal from "../Modal";
+
 export default function TemplateForm({
   type,
   handleCreate,
   handleUpdate,
-  closeModal,
   createMutation,
   updateMutation,
   deleteMutation,
   templateId,
 }) {
+  const [docs, setDocs] = useState("");
+  const [openDocViewer, setOpenDocViewer] = useState(false);
   const router = useRouter();
+  const [thumbnail, setThumbnail] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
-  const [status, setStatus] = useState("");
   const {
     register,
     control,
@@ -70,6 +72,7 @@ export default function TemplateForm({
     control,
     name: "fields",
   });
+  const [tags, setTags] = useState([]);
   const {
     fields: imagesFields,
     append: imagesAppend,
@@ -80,6 +83,7 @@ export default function TemplateForm({
   });
   const [token] = useLocalStorage("token");
   const { data: categories } = useFetchCategories();
+
   const handleFileChange = async (event, type) => {
     setIsUploading(true);
     try {
@@ -106,7 +110,11 @@ export default function TemplateForm({
       );
 
       if (type) {
-        return setValue(type, response.data.path[0]);
+        if (type === "thumbnail") {
+          return setThumbnail(response.data.path[0]);
+        } else {
+          return setValue(type, response.data.path[0]);
+        }
       }
 
       setVideoUrl(response.data.path[0]);
@@ -120,14 +128,17 @@ export default function TemplateForm({
   };
 
   const onSubmit = (data) => {
+    if (!tags.length) return toast.warning("please add atleast one tag");
     const payload = {
       name: data?.name,
       price: data?.price,
       sale_price: data?.sale_price,
+      thumbnail: thumbnail,
       fields: data?.fields,
       images: data?.images,
       url: videoUrl,
       category_id: data.category.value,
+      tags: tags,
     };
     type === "create" ? handleCreate(payload) : handleUpdate(payload);
   };
@@ -156,6 +167,8 @@ export default function TemplateForm({
         resp?.images?.[0] !== null &&
         setValue("images", resp?.images ?? []);
       resp && setVideoUrl(resp?.url);
+      resp && setThumbnail(resp?.thumbnail);
+      resp && setTags(resp?.tags);
       resp &&
         setValue(
           "category",
@@ -169,14 +182,17 @@ export default function TemplateForm({
   }, [templateId, type, categories?.length]);
 
   const deleteFile = async (file_path, type) => {
-    console.log({ file_path, type });
     try {
       const resp = await http().delete(
         `${endpoints.files.getFiles}?file_path=${file_path}`,
       );
       toast.success(resp.message);
       if (type) {
-        return setValue(type, "");
+        if (type === "thumbnail") {
+          return setThumbnail("");
+        } else {
+          return setValue(type, "");
+        }
       }
       setVideoUrl("");
       setProgress("");
@@ -209,222 +225,430 @@ export default function TemplateForm({
     remove(key);
   };
 
+  const addTag = () => {
+    if (getValues("tag") === "") {
+      return toast.warning("please enter tag name");
+    }
+
+    const updatedTags = new Set([...tags, getValues("tag")]);
+
+    updatedTags.add(getValues("tag").trim());
+    setTags([...Array.from(updatedTags)]);
+    setValue("tag", "");
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="space-y-4">
-        <Title
-          text={
-            type === "create"
-              ? "Create template"
-              : type === "view"
-                ? "Template details"
-                : type === "edit"
-                  ? "Edit template"
-                  : "Are you sure you want to delete"
-          }
-        />
+    <>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="space-y-4">
+          <Title
+            text={
+              type === "create"
+                ? "Create template"
+                : type === "view"
+                  ? "Template details"
+                  : type === "edit"
+                    ? "Edit template"
+                    : "Are you sure you want to delete"
+            }
+          />
 
-        <div className="space-y-8">
-          {/* template details */}
-          <div className="grid grid-cols-3 gap-2">
-            {/* category */}
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Controller
-                control={control}
-                name="category"
-                maxMenuHeight={230}
-                rules={{ required: "Please select category" }}
-                render={({ field }) => (
-                  <ReactSelect
-                    {...field}
-                    options={categories}
-                    placeholder="Select category"
-                    isDisabled={type === "view"}
-                    className="font-mulish h-[42px] w-full rounded-md bg-[#F7F7FC] text-sm outline-none"
-                    styles={{
-                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                    }}
-                    menuPortalTarget={
-                      typeof document !== "undefined" && document.body
-                    }
-                    menuPosition="absolute"
-                  />
+          <div className="space-y-8">
+            {/* template details */}
+            <div className="grid grid-cols-3 gap-2">
+              {/* category */}
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Controller
+                  control={control}
+                  name="category"
+                  maxMenuHeight={230}
+                  rules={{ required: "Please select category" }}
+                  render={({ field }) => (
+                    <ReactSelect
+                      {...field}
+                      options={categories}
+                      placeholder="Select category"
+                      isDisabled={type === "view"}
+                      className="font-mulish h-[42px] w-full rounded-md bg-[#F7F7FC] text-sm outline-none"
+                      styles={{
+                        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                      }}
+                      menuPortalTarget={
+                        typeof document !== "undefined" && document.body
+                      }
+                      menuPosition="absolute"
+                    />
+                  )}
+                />
+
+                {errors.category && (
+                  <span className="text-red-600">
+                    {errors.category.message}
+                  </span>
                 )}
-              />
+              </div>
 
-              {errors.category && (
-                <span className="text-red-600">{errors.category.message}</span>
+              {/* name */}
+              <div>
+                <Label htmlFor={`name`}>Template name</Label>
+                <Input
+                  disabled={type === "view"}
+                  {...register(`name`, {
+                    required: "This field is required*",
+                  })}
+                  placeholder="Enter name"
+                  type="text"
+                />
+                {errors.name && (
+                  <span className="text-red-600">{errors.name.message}</span>
+                )}
+              </div>
+
+              {/* video */}
+              <div>
+                <Label htmlFor={`file`}>Video template</Label>
+                {isUploading ? (
+                  <Progress value={progress} />
+                ) : videoUrl ? (
+                  <div className="relative flex items-center justify-around rounded-md border py-[7px]">
+                    {type !== "view" && (
+                      <div className="absolute -right-4 -top-4">
+                        <Button
+                          variant="destructive"
+                          type="button"
+                          onClick={() => deleteFile(videoUrl)}
+                        >
+                          <HiTrash size={20} />
+                        </Button>
+                      </div>
+                    )}
+                    <div className="w-20">
+                      <video
+                        controls
+                        src={`${process.env.NEXT_PUBLIC_IMAGE_DOMAIN}/${videoUrl}`}
+                      ></video>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      disabled={type === "view"}
+                      {...register(`file`, {
+                        required: "This field is required*",
+                      })}
+                      placeholder="Select video template"
+                      type="file"
+                      onChange={handleFileChange}
+                    />
+                    {errors.file && (
+                      <span className="text-red-600">
+                        {errors.file.message}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {thumbnail ? (
+                <div className="relative">
+                  <div className="absolute -right-1 -top-1 z-10">
+                    <Button
+                      variant="destructive"
+                      type="button"
+                      onClick={() => deleteFile(thumbnail, "thumbnail")}
+                    >
+                      <HiTrash size={20} />
+                    </Button>
+                  </div>
+                  <Image
+                    fill
+                    src={`${process.env.NEXT_PUBLIC_IMAGE_DOMAIN}/${thumbnail}`}
+                    alt="image"
+                    objectFit="cover"
+                    objectPosition="center"
+                    className="rounded-md"
+                    onClick={() => {
+                      setOpenDocViewer(true);
+                      setDocs(
+                        `${process.env.NEXT_PUBLIC_IMAGE_DOMAIN}/${thumbnail}`,
+                      );
+                    }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor={`thumbnail`}>Thumbnail</Label>
+                  <Input
+                    type="file"
+                    {...register("thumbnail", {
+                      required: "This field is required*",
+                    })}
+                    onChange={(e) => handleFileChange(e, "thumbnail")}
+                  />
+                  {errors?.thumbnail && (
+                    <span className="text-red-600">
+                      {errors?.thumbnail?.message}
+                    </span>
+                  )}
+                </div>
               )}
+
+              {/* price */}
+              <div>
+                <Label htmlFor={`price`}>price</Label>
+                <Input
+                  disabled={type === "view"}
+                  {...register(`price`, {
+                    required: "This field is required*",
+                  })}
+                  placeholder="Enter price"
+                  type="text"
+                />
+                {errors.price && (
+                  <span className="text-red-600">{errors.price.message}</span>
+                )}
+              </div>
+
+              {/* sale price */}
+              <div>
+                <Label htmlFor={`sale_price`}>Sale price</Label>
+                <Input
+                  disabled={type === "view"}
+                  {...register(`sale_price`, {
+                    required: "This field is required*",
+                  })}
+                  placeholder="Enter sale price"
+                  type="text"
+                />
+                {errors.sale_price && (
+                  <span className="text-red-600">
+                    {errors.sale_price.message}
+                  </span>
+                )}
+              </div>
+
+              {/* tags */}
+              <div className="col-span-3">
+                <Label htmlFor="quantity">Tags</Label>
+                <div className="grid grid-cols-12 gap-2 rounded border p-0.5">
+                  <div className="col-span-10 flex flex-wrap items-center gap-2">
+                    {tags?.map((tag, key) => (
+                      <span
+                        key={key}
+                        className="cursor-pointer rounded-lg bg-primary p-1 px-2 text-white"
+                        onClick={() => {
+                          const updatedTags = tags?.filter(
+                            (item) => item !== tag,
+                          );
+                          setTags(updatedTags);
+                        }}
+                      >
+                        {tag} x
+                      </span>
+                    ))}
+
+                    <input
+                      {...register("tag")}
+                      type="tag"
+                      disabled={type === "view" || type === "delete"}
+                      placeholder="Enter tag name"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Button type="button" className="w-full" onClick={addTag}>
+                      Add tag
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* name */}
-            <div>
-              <Label htmlFor={`name`}>Template name</Label>
-              <Input
-                disabled={type === "view"}
-                {...register(`name`, {
-                  required: "This field is required*",
-                })}
-                placeholder="Enter name"
-                type="text"
-              />
-              {errors.name && (
-                <span className="text-red-600">{errors.name.message}</span>
-              )}
-            </div>
-
-            {/* video */}
-            <div>
-              <Label htmlFor={`file`}>Video template</Label>
-              {isUploading ? (
-                <Progress value={progress} />
-              ) : videoUrl ? (
-                <div className="relative flex items-center justify-around rounded-md border py-[7px]">
-                  {type !== "view" && (
-                    <div className="absolute -right-4 -top-4">
+            {/* images */}
+            <div className="space-y-4">
+              <Title text={"Images"} />
+              <div className="space-y-4">
+                {imagesFields?.[0] !== null &&
+                  imagesFields?.map((field, key) => (
+                    <div key={field.id} className="flex items-end gap-4">
+                      <div className="grid w-full grid-cols-2 gap-2">
+                        {/* image */}
+                        {getValues(`images.${key}.url`) ? (
+                          <div className="relative">
+                            {type !== "view" && (
+                              <div className="absolute -right-1 -top-1 z-10">
+                                <Button
+                                  variant="destructive"
+                                  type="button"
+                                  onClick={() =>
+                                    deleteFile(
+                                      getValues(`images.${key}.url`),
+                                      `images.${key}.url`,
+                                    )
+                                  }
+                                >
+                                  <HiTrash size={20} />
+                                </Button>
+                              </div>
+                            )}
+                            <Image
+                              fill
+                              src={`${
+                                process.env.NEXT_PUBLIC_IMAGE_DOMAIN
+                              }/${getValues(`images.${key}.url`)}`}
+                              alt="image"
+                              objectFit="cover"
+                              objectPosition="center"
+                              className="rounded-md"
+                              onClick={() => {
+                                setOpenDocViewer(true);
+                                setDocs(
+                                  `${process.env.NEXT_PUBLIC_IMAGE_DOMAIN}/${getValues(`images.${key}.url`)}`,
+                                );
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <Label htmlFor={`images.${key}.url`}>Image</Label>
+                            <Input
+                              type="file"
+                              {...register("url", {
+                                required: "This field is required*",
+                              })}
+                              onChange={(e) =>
+                                handleFileChange(e, `images.${key}.url`)
+                              }
+                            />
+                            {errors?.images?.[key] && (
+                              <span className="text-red-600">
+                                {errors?.images?.[key]?.["url"]?.message}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {/* page number */}
+                        <div>
+                          <Label htmlFor={`images.${key}.page_number`}>
+                            Page number
+                          </Label>
+                          <Input
+                            disabled={type === "view"}
+                            {...register(`images.${key}.page_number`, {
+                              required: "This field is required*",
+                            })}
+                            placeholder="Enter page number"
+                            type="text"
+                          />
+                          {errors?.images?.[key] && (
+                            <span className="text-red-600">
+                              {errors?.images?.[key]?.["page_number"]?.message}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <Button
                         variant="destructive"
                         type="button"
-                        onClick={() => deleteFile(videoUrl)}
+                        onClick={() =>
+                          handleImageRemove(getValues(`images.${key}.id`), key)
+                        }
                       >
                         <HiTrash size={20} />
                       </Button>
                     </div>
-                  )}
-                  <div className="w-20">
-                    <video
-                      controls
-                      src={`${process.env.NEXT_PUBLIC_IMAGE_DOMAIN}/${videoUrl}`}
-                    ></video>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <Input
-                    disabled={type === "view"}
-                    {...register(`file`, {
-                      required: "This field is required*",
-                    })}
-                    placeholder="Select video template"
-                    type="file"
-                    onChange={handleFileChange}
-                  />
-                  {errors.file && (
-                    <span className="text-red-600">{errors.file.message}</span>
-                  )}
-                </>
-              )}
+                  ))}
+              </div>
+              <Button type="button" onClick={() => imagesAppend()}>
+                Add fields
+              </Button>
             </div>
 
-            {/* price */}
-            <div>
-              <Label htmlFor={`price`}>price</Label>
-              <Input
-                disabled={type === "view"}
-                {...register(`price`, {
-                  required: "This field is required*",
-                })}
-                placeholder="Enter price"
-                type="text"
-              />
-              {errors.price && (
-                <span className="text-red-600">{errors.price.message}</span>
-              )}
-            </div>
-
-            {/* sale price */}
-            <div>
-              <Label htmlFor={`sale_price`}>Sale price</Label>
-              <Input
-                disabled={type === "view"}
-                {...register(`sale_price`, {
-                  required: "This field is required*",
-                })}
-                placeholder="Enter sale price"
-                type="text"
-              />
-              {errors.sale_price && (
-                <span className="text-red-600">
-                  {errors.sale_price.message}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* images */}
-          <div className="space-y-4">
-            <Title text={"Images"} />
+            {/* fields */}
             <div className="space-y-4">
-              {imagesFields?.[0] !== null &&
-                imagesFields?.map((field, key) => (
+              <Title text={"Fields"} />
+              <div className="space-y-4">
+                {fields?.map((field, key) => (
                   <div key={field.id} className="flex items-end gap-4">
-                    <div className="grid w-full grid-cols-2 gap-2">
-                      {/* image */}
-                      {getValues(`images.${key}.url`) ? (
-                        <div className="relative">
-                          {type !== "view" && (
-                            <div className="absolute -right-1 -top-1 z-10">
-                              <Button
-                                variant="destructive"
-                                type="button"
-                                onClick={() =>
-                                  deleteFile(
-                                    getValues(`images.${key}.url`),
-                                    `images.${key}.url`,
-                                  )
-                                }
-                              >
-                                <HiTrash size={20} />
-                              </Button>
-                            </div>
+                    <div className="grid w-full grid-cols-4 gap-2">
+                      {/* type */}
+                      <div>
+                        <Label htmlFor={`fields.${key}.type`}>Type</Label>
+                        <Controller
+                          name={`fields.${key}.type`}
+                          control={control}
+                          render={({ field: { onChange } }) => (
+                            <Select
+                              onValueChange={onChange}
+                              required
+                              defaultValue={field.type}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="textarea">
+                                  Textarea
+                                </SelectItem>
+                                <SelectItem value="date">Date</SelectItem>
+                              </SelectContent>
+                            </Select>
                           )}
-                          <Image
-                            fill
-                            src={`${
-                              process.env.NEXT_PUBLIC_IMAGE_DOMAIN
-                            }/${getValues(`images.${key}.url`)}`}
-                            alt="image"
-                            objectFit="cover"
-                            objectPosition="center"
-                            className="rounded-md"
-                          />
-                        </div>
-                      ) : (
-                        <div>
-                          <Label htmlFor={`images.${key}.url`}>Image</Label>
-                          <Input
-                            type="file"
-                            {...register("url", {
-                              required: "This field is required*",
-                            })}
-                            onChange={(e) =>
-                              handleFileChange(e, `images.${key}.url`)
-                            }
-                          />
-                          {errors?.images?.[key] && (
-                            <span className="text-red-600">
-                              {errors?.images?.[key]?.["url"]?.message}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                        />
+                      </div>
+                      {/* name */}
+                      <div>
+                        <Label htmlFor={`fields.${key}.name`}>Name</Label>
+                        <Input
+                          disabled={type === "view"}
+                          {...register(`fields.${key}.name`, {
+                            required: "This field is required*",
+                          })}
+                          placeholder="Enter name"
+                          type="text"
+                        />
+                        {errors?.fields?.[key] && (
+                          <span className="text-red-600">
+                            {errors?.fields?.[key]?.["name"]?.message}
+                          </span>
+                        )}
+                      </div>
+                      {/* placeholder */}
+                      <div>
+                        <Label htmlFor={`fields.${key}.placeholder`}>
+                          Placeholder
+                        </Label>
+                        <Input
+                          disabled={type === "view"}
+                          {...register(`fields.${key}.placeholder`, {
+                            required: "This field is required*",
+                          })}
+                          placeholder="Enter placeholder"
+                          type="text"
+                        />
+                        {errors?.fields?.[key] && (
+                          <span className="text-red-600">
+                            {errors?.fields?.[key]?.["placeholder"]?.message}
+                          </span>
+                        )}
+                      </div>
                       {/* page number */}
                       <div>
-                        <Label htmlFor={`images.${key}.page_number`}>
+                        <Label htmlFor={`fields.${key}.page_number`}>
                           Page number
                         </Label>
                         <Input
                           disabled={type === "view"}
-                          {...register(`images.${key}.page_number`, {
+                          {...register(`fields.${key}.page_number`, {
                             required: "This field is required*",
                           })}
                           placeholder="Enter page number"
                           type="text"
                         />
-                        {errors?.images?.[key] && (
+                        {errors?.fields?.[key] && (
                           <span className="text-red-600">
-                            {errors?.images?.[key]?.["page_number"]?.message}
+                            {errors?.fields?.[key]?.["page_number"]?.message}
                           </span>
                         )}
                       </div>
@@ -433,140 +657,48 @@ export default function TemplateForm({
                       variant="destructive"
                       type="button"
                       onClick={() =>
-                        handleImageRemove(getValues(`images.${key}.id`), key)
+                        handleFieldRemove(getValues(`fields.${key}.id`), key)
                       }
                     >
                       <HiTrash size={20} />
                     </Button>
                   </div>
                 ))}
+              </div>
+              <Button type="button" onClick={() => append()}>
+                Add fields
+              </Button>
             </div>
-            <Button type="button" onClick={() => imagesAppend()}>
-              Add fields
-            </Button>
           </div>
 
-          {/* fields */}
-          <div className="space-y-4">
-            <Title text={"Fields"} />
-            <div className="space-y-4">
-              {fields?.map((field, key) => (
-                <div key={field.id} className="flex items-end gap-4">
-                  <div className="grid w-full grid-cols-4 gap-2">
-                    {/* type */}
-                    <div>
-                      <Label htmlFor={`fields.${key}.type`}>Type</Label>
-                      <Controller
-                        name={`fields.${key}.type`}
-                        control={control}
-                        render={({ field: { onChange } }) => (
-                          <Select
-                            onValueChange={onChange}
-                            required
-                            defaultValue={field.type}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Text</SelectItem>
-                              <SelectItem value="textarea">Textarea</SelectItem>
-                              <SelectItem value="date">Date</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </div>
-                    {/* name */}
-                    <div>
-                      <Label htmlFor={`fields.${key}.name`}>Name</Label>
-                      <Input
-                        disabled={type === "view"}
-                        {...register(`fields.${key}.name`, {
-                          required: "This field is required*",
-                        })}
-                        placeholder="Enter name"
-                        type="text"
-                      />
-                      {errors?.fields?.[key] && (
-                        <span className="text-red-600">
-                          {errors?.fields?.[key]?.["name"]?.message}
-                        </span>
-                      )}
-                    </div>
-                    {/* placeholder */}
-                    <div>
-                      <Label htmlFor={`fields.${key}.placeholder`}>
-                        Placeholder
-                      </Label>
-                      <Input
-                        disabled={type === "view"}
-                        {...register(`fields.${key}.placeholder`, {
-                          required: "This field is required*",
-                        })}
-                        placeholder="Enter placeholder"
-                        type="text"
-                      />
-                      {errors?.fields?.[key] && (
-                        <span className="text-red-600">
-                          {errors?.fields?.[key]?.["placeholder"]?.message}
-                        </span>
-                      )}
-                    </div>
-                    {/* page number */}
-                    <div>
-                      <Label htmlFor={`fields.${key}.page_number`}>
-                        Page number
-                      </Label>
-                      <Input
-                        disabled={type === "view"}
-                        {...register(`fields.${key}.page_number`, {
-                          required: "This field is required*",
-                        })}
-                        placeholder="Enter page number"
-                        type="text"
-                      />
-                      {errors?.fields?.[key] && (
-                        <span className="text-red-600">
-                          {errors?.fields?.[key]?.["page_number"]?.message}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    type="button"
-                    onClick={() =>
-                      handleFieldRemove(getValues(`fields.${key}.id`), key)
-                    }
-                  >
-                    <HiTrash size={20} />
-                  </Button>
-                </div>
-              ))}
+          {type !== "view" && (
+            <div className="text-end">
+              <Button variant="primary">
+                {createMutation?.isLoading ? (
+                  <Spinner />
+                ) : type === "create" ? (
+                  "Create"
+                ) : type === "edit" ? (
+                  "Update"
+                ) : (
+                  "Delete"
+                )}
+              </Button>
             </div>
-            <Button type="button" onClick={() => append()}>
-              Add fields
-            </Button>
-          </div>
+          )}
         </div>
+      </form>
 
-        {type !== "view" && (
-          <div className="text-end">
-            <Button variant="primary">
-              {createMutation?.isLoading ? (
-                <Spinner />
-              ) : type === "create" ? (
-                "Create"
-              ) : type === "edit" ? (
-                "Update"
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
-    </form>
+      <Modal onClose={() => setOpenDocViewer(false)} isOpen={openDocViewer}>
+        <div className="relative aspect-[9/16]">
+          <Image
+            src={docs}
+            fill
+            alt="image"
+            className="object-contain object-center"
+          />
+        </div>
+      </Modal>
+    </>
   );
 }

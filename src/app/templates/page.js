@@ -20,8 +20,10 @@ async function deleteTemplate(data) {
   return http().delete(`${endpoints.templates.getAll}/${data.id}`);
 }
 
-export default function Page() {
-  const { data, isLoading, isError, error } = useFetchTemplates();
+export default function Page({ searchParams }) {
+  const page =
+    typeof searchParams["page"] === "string" ? Number(searchParams["page"]) : 1;
+  const { data, isLoading, isError, error } = useFetchTemplates(page);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -52,7 +54,7 @@ export default function Page() {
   }
 
   return (
-    <div className="container mx-auto bg-white p-8 rounded-lg border-input">
+    <div className="container mx-auto rounded-lg border-input bg-white p-8">
       <div className="flex items-center justify-between">
         <Title text={"Templates"} />
 

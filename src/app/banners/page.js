@@ -8,30 +8,29 @@ import { useState } from "react";
 import { CategoryForm } from "@/components/Forms/Category";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import http from "@/utils/http";
-import { endpoints } from "@/utils/endpoints";
 import Spinner from "@/components/Spinner";
 import { isObject } from "@/utils/object";
 import { toast } from "sonner";
+import { endpoints } from "../../utils/endpoints";
+import { BannerForm } from "../../components/Forms/Banner";
 
-async function postCategory(data) {
-  return http().post(endpoints.categories.getAll, data);
+async function postBanner(data) {
+  return http().post(endpoints.banners.getAll, data);
 }
 
-async function updateCategory(data) {
-  return http().put(`${endpoints.categories.getAll}/${data.id}`, data);
+async function updateBanner(data) {
+  return http().put(`${endpoints.banners.getAll}/${data.id}`, data);
 }
 
-async function deleteCategory(data) {
-  return http().delete(`${endpoints.categories.getAll}/${data.id}`);
+async function deleteBanner(data) {
+  return http().delete(`${endpoints.banners.getAll}/${data.id}`);
 }
 
-async function fetchCategories(page, limit) {
-  return http().get(
-    `${endpoints.categories.getAll}?page=${page}&limit=${limit}`,
-  );
+async function fetchBanners() {
+  return http().get(`${endpoints.banners.getAll}`);
 }
 
-export default function Categories({ searchParams }) {
+export default function Banners({ searchParams }) {
   const page =
     typeof searchParams["page"] === "string" ? Number(searchParams["page"]) : 1;
   const limit =
@@ -40,7 +39,7 @@ export default function Categories({ searchParams }) {
       : 10;
   const [isModal, setIsModal] = useState(false);
   const [type, setType] = useState("");
-  const [categoryId, setCategoryId] = useState(null);
+  const [bannerId, setBannerId] = useState(null);
   const queryClient = useQueryClient();
 
   function openModal() {
@@ -51,14 +50,16 @@ export default function Categories({ searchParams }) {
   }
 
   const { data, isLoading, isError, error } = useQuery({
-    queryFn: () => fetchCategories(page, limit),
-    queryKey: ["categories", page, limit],
+    queryFn: fetchBanners,
+    queryKey: ["banners"],
   });
 
-  const createMutation = useMutation(postCategory, {
+  console.log({ data });
+
+  const createMutation = useMutation(postBanner, {
     onSuccess: () => {
-      toast.success("New category added.");
-      queryClient.invalidateQueries("categories");
+      toast.success("New banner added.");
+      queryClient.invalidateQueries("banners");
     },
     onError: (error) => {
       if (isObject(error)) {
@@ -69,10 +70,10 @@ export default function Categories({ searchParams }) {
     },
   });
 
-  const updateMutation = useMutation(updateCategory, {
+  const updateMutation = useMutation(updateBanner, {
     onSuccess: () => {
-      toast.success("Category updated.");
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Banner updated.");
+      queryClient.invalidateQueries({ queryKey: ["banners"] });
     },
     onError: (error) => {
       if (isObject(error)) {
@@ -83,10 +84,10 @@ export default function Categories({ searchParams }) {
     },
   });
 
-  const deleteMutation = useMutation(deleteCategory, {
+  const deleteMutation = useMutation(deleteBanner, {
     onSuccess: () => {
-      toast.success("Category deleted.");
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Banner deleted.");
+      queryClient.invalidateQueries({ queryKey: ["banners"] });
     },
     onError: (error) => {
       if (isObject(error)) {
@@ -102,7 +103,7 @@ export default function Categories({ searchParams }) {
   };
 
   const handleUpdate = async (data) => {
-    updateMutation.mutate({ ...data, id: categoryId });
+    updateMutation.mutate({ ...data, id: bannerId });
   };
 
   const handleDelete = async (id) => {
@@ -120,7 +121,7 @@ export default function Categories({ searchParams }) {
   return (
     <div className="container mx-auto rounded-lg border-input bg-white p-8">
       <div className="flex items-center justify-between">
-        <Title text={"Categories"} />
+        <Title text={"Banners"} />
 
         <Button
           onClick={() => {
@@ -128,26 +129,26 @@ export default function Categories({ searchParams }) {
             openModal();
           }}
         >
-          Create Category
+          Create Banner
         </Button>
       </div>
       <div>
         <DataTable
-          columns={columns(setType, openModal, setCategoryId)}
-          data={data?.data?.map(({ id, name }) => ({ id, name }))}
+          columns={columns(setType, openModal, setBannerId)}
+          data={data?.map(({ id, image }) => ({ id, image }))}
           total_page={data?.total_page}
         />
       </div>
 
       {isModal && (
         <Modal isOpen={isModal} onClose={closeModal}>
-          <CategoryForm
+          <BannerForm
             type={type}
             handleCreate={handleCreate}
             handleUpdate={handleUpdate}
             handleDelete={handleDelete}
             closeModal={closeModal}
-            categoryId={categoryId}
+            bannerId={bannerId}
           />
         </Modal>
       )}
